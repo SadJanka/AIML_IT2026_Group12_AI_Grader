@@ -2,18 +2,19 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
-set PY=.venv\Scripts\python.exe
-if not exist %PY% (
+set "VENV=%LOCALAPPDATA%\ai-grader\venv"
+set "PY=%VENV%\Scripts\python.exe"
+if not exist "%PY%" (
   where python >nul 2>nul
   if errorlevel 1 goto nopython
-  echo Creating virtual environment .venv ...
-  python -m venv .venv
+  echo Creating virtual environment in %VENV% ...
+  python -m venv "%VENV%"
 )
 
 echo Installing/checking libraries ...
-%PY% -m pip install -q --disable-pip-version-check -r requirements.txt
+"%PY%" -m pip install -q --disable-pip-version-check -r requirements.txt
 if errorlevel 1 goto pipfail
-%PY% -m pip install -q --disable-pip-version-check -r requirements-optional.txt >nul 2>&1
+"%PY%" -m pip install -q --disable-pip-version-check -r requirements-optional.txt >nul 2>&1
 
 if not exist .env copy .env.example .env >nul
 
@@ -22,7 +23,7 @@ echo  AI Grader: http://localhost:8000
 echo  Stop: Ctrl+C
 echo.
 start "" cmd /c "timeout /t 4 >nul & start http://localhost:8000"
-%PY% -m uvicorn app.main:app --reload --port 8000
+"%PY%" -m uvicorn app.main:app --reload --port 8000
 pause
 exit /b 0
 

@@ -9,8 +9,10 @@ stored in a database and are used to calculate the final course grade.
 
 ## Running
 
-**Windows:** double-click `run.bat`. The first run creates a virtual environment, installs the libraries and opens
-http://localhost:8000. Requires Python 3.11+ ([python.org](https://www.python.org/downloads/)).
+**Windows:** double-click `run.bat`. The first run creates a virtual environment in
+`%LOCALAPPDATA%\ai-grader\venv` (outside the project, so long folder names do not hit the Windows path length limit),
+installs the libraries and opens http://localhost:8000. Requires Python 3.11+
+([python.org](https://www.python.org/downloads/)).
 
 **Manually:**
 ```bash
