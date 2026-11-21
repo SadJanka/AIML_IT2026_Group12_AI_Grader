@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Similarity check") }} — {{ assignment.title }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /
+  <a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> /</p>
+<div class="row-between">
+  <h1>{{ _("Similarity check") }}: {{ assignment.title }}</h1>
+  <form method="get" class="inline-form">
+    <label class="narrow">{{ _("Show pairs from") }}
+      <select name="threshold" onchange="this.form.submit()">
+        {% for t in [50, 60, 70, 80, 90] %}<option value="{{ t }}" {% if t == threshold %}selected{% endif %}>{{ t }}%</option>{% endfor %}
+      </select>
+    </label>
+    <noscript><button class="secondary">{{ _("Show") }}</button></noscript>
+  </form>
+</div>
+
+<p class="muted">{{ _("Classic NLP method: each submission becomes a TF-IDF vector of words and word pairs, and every pair of students is compared with cosine similarity. Words from the task, the criteria and the model answer are ignored, so correct answers alone do not make two submissions similar. A high value is only a signal: you decide whether it is copying.") }}</p>
+<p class="small muted">{{ _("Compared submissions: {n} (latest submission of each student).", n=checked) }}</p>
+
+<section class="card">
+  {% if pairs %}
+  <table>
+    <thead><tr><th>{{ _("Student") }}</th><th>{{ _("Student") }}</th><th>{{ _("Similarity") }}</th>
+      <th>{{ _("Shared passages") }}</th><th>{{ _("Decision") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for p in pairs %}
+      <tr>
+        <td>{{ p.a.student.label }}</td>
+        <td>{{ p.b.student.label }}</td>
+        <td><b class="{{ 'bad' if p.percent >= 85 }}">{{ p.percent|fmt(0) }}%</b></td>
+        <td class="small">{{ _("{n} five-word sequences", n=p.shared_words) }}</td>
+        <td>
+          {% if p.decision == "copying" %}<span class="badge danger">{{ _("copying") }}</span>
+          {% elif p.decision == "not_copying" %}<span class="badge ok">{{ _("not copying") }}</span>
+          {% else %}<span class="muted small">{{ _("not decided") }}</span>{% endif %}
+        </td>
+        <td class="right"><a href="/assignments/{{ assignment.id }}/similarity/{{ p.a.id }}/{{ p.b.id }}">{{ _("Compare") }} →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">{{ _("No pairs at or above {t}% similarity.", t=threshold) }}</p>
+  {% endif %}
+</section>
+{% endblock %}

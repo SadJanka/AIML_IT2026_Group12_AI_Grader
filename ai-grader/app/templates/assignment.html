@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ assignment.title }} — {{ _("AI Grader") }}{% endblock %}
+{% block head %}{% if grading_now %}<noscript><meta http-equiv="refresh" content="5"></noscript>{% endif %}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /</p>
+<div class="row-between">
+  <h1>{{ assignment.title }} <span class="badge">{{ assignment.language|upper }}</span></h1>
+  <div class="actions">
+    <a class="btn" href="/assignments/{{ assignment.id }}/summary">{{ _("Summary and export") }}</a>
+    <a class="btn secondary" href="/assignments/{{ assignment.id }}/similarity">{{ _("Similarity check") }}</a>
+    <details class="menu" data-menu>
+      <summary class="btn secondary">{{ icons.gear() }} {{ _("AI settings") }}</summary>
+      <div class="menu-panel wide ai-settings">
+        <form method="post" action="/assignments/{{ assignment.id }}/ai-settings" data-autosave>
+          <label class="switch">
+            <input type="checkbox" name="use_examples" value="1" {% if assignment.use_examples %}checked{% endif %}>
+            <span><b>{{ _("Learn from teacher corrections") }}</b>
+              <span class="small muted">{{ _("Submissions where you changed the AI points are given to the AI as examples, so it grades closer to you. Corrections available: {n}.", n=corrections) }}</span></span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" name="double_check" value="1" {% if assignment.double_check %}checked{% endif %}>
+            <span><b>{{ _("Double check") }}</b>
+              <span class="small muted">{{ _('Each submission is graded twice. If the results differ, it is marked "AI unsure" so you know what to review. Takes twice as long and uses twice the API quota.') }}</span></span>
+          </label>
+          <noscript><button class="secondary">{{ _("Save") }}</button></noscript>
+        </form>
+      </div>
+    </details>
+    <a class="btn secondary" href="/assignments/{{ assignment.id }}/edit">{{ _("Edit") }}</a>
+    <form method="post" action="/assignments/{{ assignment.id }}/delete" data-confirm="{{ _('Delete the assignment and all its submissions?') }}">
+      <button class="secondary danger">{{ _("Delete") }}</button>
+    </form>
+  </div>
+</div>
+{% if assignment.instructions %}<p class="instructions">{{ assignment.instructions }}</p>{% endif %}
+
+<details class="card">
+  <summary>{{ _("Criteria ({n}, total {p} p.)", n=assignment.criteria|length, p=assignment.max_points|fmt) }}</summary>
+  <table>
+    <thead><tr><th>{{ _("Criterion") }}</th><th>{{ _("Max") }}</th><th>{{ _("Topic") }}</th><th>{{ _("Description") }}</th><th>{{ _("Correct answer") }}</th></tr></thead>
+    <tbody>
+    {% for c in assignment.criteria %}
+      <tr><td>{{ c.name }}</td><td>{{ c.max_points|fmt }}</td><td>{{ c.topic or "—" }}</td>
+        <td class="small">{{ c.description }}</td><td class="small">{{ c.expected_answer or "—" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if assignment.model_answer %}
+  <p class="small"><b>{{ _("Model answer") }}:</b></p>
+  <div class="small pre">{{ assignment.model_answer }}</div>
+  {% endif %}
+</details>
+
+<section class="card">
+  <div class="row-between">
+    <h2>{{ _("Submitted work") }}</h2>
+    {% if grading_now %}
+      <span class="badge warn">{{ _("AI is grading…") }}</span>
+    {% elif pending %}
+      <form method="post" action="/assignments/{{ assignment.id }}/grade-all">
+        <button>{{ _("Grade with AI ({n})", n=pending) }}</button>
+      </form>
+    {% endif %}
+  </div>
+  {% if grading_now %}
+  <div class="progress" data-progress-url="/assignments/{{ assignment.id }}/progress"
+       data-eta="{{ _('~{t} left') }}" data-calc="{{ _('estimating time left…') }}"
+       data-done="{{ _('Done! Refreshing the page…') }}" data-errors="{{ _('errors: {n}') }}">
+    <div class="progress-text">
+      <b>{{ _("AI is grading") }}</b> <span data-p-count>…</span>
+      <span class="muted" data-p-eta></span> <span class="bad small" data-p-errors></span>
+    </div>
+    <div class="bar"><div class="fill"></div></div>
+  </div>
+  {% endif %}
+  {% if assignment.submissions %}
+  <table>
+    <thead><tr><th>{{ _("Student") }}</th><th>{{ _("Submitted") }}</th><th>{{ _("Status") }}</th><th>AI</th><th>{{ _("Final") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for s in assignment.submissions %}
+      <tr data-sub-id="{{ s.id }}">
+        <td>{{ s.student.label }}{% if s.original_filename %}<br><span class="small muted">{{ s.original_filename }}</span>{% endif %}</td>
+        <td class="small">{{ s.submitted_at.strftime("%d.%m.%Y %H:%M") }}</td>
+        <td data-c-status><span class="badge {{ s.status }}">{{ _(s.status_label) }}</span>
+            <span class="badge danger" data-flag-injection title="{{ _('Possible manipulation attempt') }}" {% if not s.injection_flag %}hidden{% endif %}>{{ _("manipulation?") }}</span>
+            <span class="badge warn" data-flag-unsure title="{{ _('The two AI runs gave different results') }}" {% if not s.uncertain %}hidden{% endif %}>{{ _("AI unsure") }}</span>
+            {% if s.copying_flag %}<span class="badge danger" title="{{ _('You marked this submission as copying') }}">{{ _("copying") }}</span>{% endif %}</td>
+        <td data-c-ai>{{ s.ai_total|fmt }}</td>
+        <td>{% if s.status == "approved" %}<b>{{ s.final_total|fmt }}</b> / {{ assignment.max_points|fmt }}{% else %}–{% endif %}</td>
+        <td class="right"><a href="/submissions/{{ s.id }}">{{ _("Review") if s.status == "ai_graded" else _("Open") }} →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{{ _("No submissions yet.") }}</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>{{ _("Add submissions") }}</h2>
+  <form method="post" action="/assignments/{{ assignment.id }}/submissions/bulk" enctype="multipart/form-data"
+        data-autosubmit class="upload-form">
+    <label class="dropzone">
+      <input type="file" name="files" multiple accept="{{ ACCEPT }}" class="visually-hidden">
+      <span class="dz-title">{{ _("Drop student work, a folder or a ZIP here") }}</span>
+      <span>{{ _("or click to choose files") }}</span>
+      <span class="small muted">{{ _("Works with documents (.docx, .odt, .rtf, .pdf, .txt), folders, archives (.zip, .rar, .7z) and e-mails (.eml, .msg — attachments are taken, the student = the sender). The student is recognised by the folder or file name, e.g. Anna Berzina/essay.docx or S-001_essay.docx; if there is no match, a new student is created. Several files in one student's folder = one submission.") }}</span>
+    </label>
+    <div class="upload-options">
+      <label class="checkbox"><input type="checkbox" name="auto_grade" value="1" checked> {{ _("Grade with AI right away") }}</label>
+      <label class="btn secondary small-btn">{{ _("Choose folder") }}
+        <input type="file" webkitdirectory multiple class="visually-hidden" data-folder-input>
+      </label>
+      <noscript><button>{{ _("Upload") }}</button></noscript>
+    </div>
+  </form>
+
+  <details class="sub-details">
+    <summary>{{ _("Or paste text for one student") }}</summary>
+    {% if course.students %}
+    <form method="post" action="/assignments/{{ assignment.id }}/submissions" enctype="multipart/form-data" class="form">
+      <label class="narrow">{{ _("Student") }}
+        <select name="student_id" required>
+          {% for st in course.students %}<option value="{{ st.id }}">{{ st.label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>{{ _("Text of the work") }}
+        <textarea name="text" rows="6" data-drop placeholder="{{ _("Paste the student's work…") }}"></textarea>
+        <span class="drop-hint">{{ _("you can drop a .docx, .pdf or .txt file here") }}</span>
+      </label>
+      <button>{{ _("Add") }}</button>
+    </form>
+    {% else %}
+    <p class="muted">{{ _("The course has no students yet — drop files above and students will be created automatically.") }}</p>
+    {% endif %}
+  </details>
+</section>
+{% endblock %}

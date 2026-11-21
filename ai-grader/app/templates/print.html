@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Feedback") }} — {{ assignment.title }}{% endblock %}
+{% block header %}
+<header class="topbar no-print">
+  <span class="brand">{{ _("Feedback for all students") }}</span>
+  <nav>
+    <button type="button" onclick="window.print()">{{ _("Print / save as PDF") }}</button>
+  </nav>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+{% if not items %}
+  <p class="muted">{{ _("No approved submissions yet. Feedback for printing appears after approval.") }}</p>
+{% else %}
+  <p class="small muted no-print">{{ _("Each student is printed on a separate page. For a PDF choose “Save as PDF” in the print dialog.") }}</p>
+  {% for sub, weak in items %}
+  <article class="feedback print-page {{ 'page-break' if not loop.last }}">
+    <p class="small muted">{{ assignment.course.name }} · {{ assignment.title }}</p>
+    <h1>{{ sub.student.display_name or sub.student.code }}</h1>
+    {% include "_feedback_body.html" %}
+  </article>
+  {% endfor %}
+{% endif %}
+{% endblock %}

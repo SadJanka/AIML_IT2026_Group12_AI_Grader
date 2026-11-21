@@ -1,0 +1,33 @@
+<div class="score-big">{{ sub.final_total|fmt }} <span>/ {{ _("{n} points", n=assignment.max_points|fmt) }}</span></div>
+{% if sub.final_summary %}<p class="summary">{{ sub.final_summary }}</p>{% endif %}
+
+{% for c in assignment.criteria %}
+{% set sc = sub.score_for(c.id) %}
+<section class="card">
+  <div class="row-between">
+    <h2>{{ c.name }}</h2>
+    <span class="badge {{ 'ok' if sc and sc.final_points == c.max_points else 'warn' }}">{{ sc.final_points|fmt if sc else "–" }} / {{ c.max_points|fmt }}</span>
+  </div>
+  {% if sc %}
+    {% if sc.teacher_comment %}<p><b>{{ _("Teacher") }}:</b> {{ sc.teacher_comment }}</p>{% endif %}
+    {% if sc.ai_justification and not sc.changed_by_teacher %}<p>{{ sc.ai_justification }}</p>{% endif %}
+    {% if sc.ai_mistakes and sc.final_points < c.max_points %}
+      <p class="small"><b>{{ _("Where the mistakes were:") }}</b></p>
+      <ul>{% for m in sc.ai_mistakes %}<li>{{ m }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if sc.ai_improvement and sc.final_points < c.max_points %}<p class="tip"><b>{{ _("How to improve") }}:</b> {{ sc.ai_improvement }}</p>{% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if weak %}
+<section class="card">
+  <h2>{{ _("What to revise") }}</h2>
+  {% for w in weak %}
+    <p><b>{{ w.topic }}</b></p>
+    {% if w.materials %}
+    <ul>{% for m in w.materials %}<li>{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{{ m.title }}</a>{% else %}{{ m.title }}{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="muted small">{{ _("Ask your teacher what to use to revise this topic.") }}</p>{% endif %}
+  {% endfor %}
+</section>
+{% endif %}

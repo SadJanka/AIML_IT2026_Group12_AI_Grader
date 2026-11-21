@@ -1,0 +1,7 @@
+a) s1 = 18 km/h · 1,5 h = 27 km
+30 min = 0,5 h
+s2 = 24 km/h · 0,5 h = 12 km
+s = 27 km + 12 km = 39 km
+b) t = 1,5 h + 0,5 h = 2 h
+v_vid = s / t = 39 km / 2 h = 19,5 km/h
+Atbilde: 39 km; 19,5 km/h

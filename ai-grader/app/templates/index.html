@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _("Courses") }}</h1>
+
+{% if courses %}
+<div class="cards">
+  {% for c in courses %}
+  <a class="card link-card" href="/courses/{{ c.id }}">
+    <h3>{{ c.name }}</h3>
+    <p class="muted">{{ c.description or "—" }}</p>
+    <p class="small">{{ _("{n} students", n=c.students|length) }} · {{ _("{n} assignments", n=c.assignments|length) }}</p>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">{{ _("No courses yet.") }}</p>
+{% endif %}
+
+<section class="card">
+  <h2>{{ _("New course") }}</h2>
+  <form method="post" action="/courses" class="form">
+    <label>{{ _("Title") }} <input name="name" required placeholder="{{ _('e.g. History, grade 9b') }}"></label>
+    <label>{{ _("Description") }} <input name="description" placeholder="{{ _('optional') }}"></label>
+    <button>{{ _("Create course") }}</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>{{ _("Examples and testing") }}</h2>
+  <p class="small muted">{{ _("Ready-made courses with assignments, criteria and correct answers — nothing to fill in.") }}</p>
+  <div class="actions">
+    <form method="post" action="/benchmark">
+      <button>{{ _("Create a test course to check AI accuracy (25 students, 3 difficulty levels)") }}</button>
+    </form>
+    <form method="post" action="/demo">
+      <button class="secondary">{{ _("Add a demo course with examples") }}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

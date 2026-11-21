@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ course.name }} — {{ _("AI Grader") }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> /</p>
+<div class="row-between">
+  <h1>{{ course.name }}</h1>
+  <div class="actions">
+    <a class="btn" href="/courses/{{ course.id }}/results">{{ _("Results") }}</a>
+    <a class="btn secondary" href="/courses/{{ course.id }}/stats">{{ _("AI vs teacher") }}</a>
+    {% if course.benchmark_json %}<a class="btn" href="/courses/{{ course.id }}/accuracy">{{ _("Accuracy") }}</a>{% endif %}
+  </div>
+</div>
+{% if course.description %}<p class="muted">{{ course.description }}</p>{% endif %}
+
+<section class="card">
+  <div class="row-between">
+    <h2>{{ _("Assignments") }}</h2>
+    <a class="btn" href="/courses/{{ course.id }}/assignments/new">+ {{ _("New assignment") }}</a>
+  </div>
+  {% if course.assignments %}
+  <table>
+    <thead><tr><th>{{ _("Assignment") }}</th><th>{{ _("Criteria") }}</th><th>{{ _("Max points") }}</th><th>{{ _("Weight") }}</th>
+      <th>{{ _("Language") }}</th><th>{{ _("Submissions") }}</th><th>{{ _("Waiting") }}</th></tr></thead>
+    <tbody>
+    {% for a in course.assignments %}
+      {% set waiting = a.submissions|selectattr("status", "ne", "approved")|list|length %}
+      <tr>
+        <td><a href="/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td>{{ a.criteria|length }}</td>
+        <td>{{ a.max_points|fmt }}</td>
+        <td>{{ a.weight|fmt(2) }}</td>
+        <td>{{ a.language|upper }}</td>
+        <td>{{ a.submissions|length }}</td>
+        <td>{% if waiting %}<span class="badge warn">{{ waiting }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">{{ _("No assignments.") }}</p>{% endif %}
+</section>
+
+<div class="grid2">
+<section class="card" id="skoleni">
+  <h2>{{ _("Students") }}</h2>
+  <p class="small muted">{{ _("Only the text of the work is sent to the language model — never the code or the name.") }}</p>
+  {% if course.students %}
+  <table>
+    <thead><tr><th>{{ _("Code") }}</th><th>{{ _("Name") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for s in course.students %}
+      <tr>
+        <td>{{ s.code }}</td><td>{{ s.display_name or "—" }}</td>
+        <td class="right">
+          <form method="post" action="/students/{{ s.id }}/delete" data-confirm="{{ _('Delete student {code} and ALL of their work and grades?', code=s.code) }}">
+            <button class="link danger small">{{ _("delete data") }}</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <form method="post" action="/courses/{{ course.id }}/students" class="form">
+    <label>{{ _("Add students") }} <span class="small muted">{{ _("one per line: code; name (name is optional)") }}</span>
+      <textarea name="lines" rows="3" required data-drop placeholder="S-010; Anna&#10;S-011"></textarea>
+      <span class="drop-hint">{{ _("you can drop a list from a .txt, .csv or .docx file") }}</span>
+    </label>
+    <button>{{ _("Add") }}</button>
+  </form>
+</section>
+
+<section class="card" id="materiali">
+  <h2>{{ _("Learning materials") }}</h2>
+  <p class="small muted">{{ _("If a student is weak in a topic, the feedback recommends materials for that topic. The topic name must match the criterion's topic.") }}</p>
+  {% if course.materials %}
+  <table>
+    <thead><tr><th>{{ _("Topic") }}</th><th>{{ _("Material") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for m in course.materials %}
+      <tr>
+        <td>{{ m.topic }}</td>
+        <td>{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{{ m.title }}</a>{% else %}{{ m.title }}{% endif %}</td>
+        <td class="right"><form method="post" action="/materials/{{ m.id }}/delete"><button class="link danger small">{{ _("delete") }}</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <form method="post" action="/courses/{{ course.id }}/materials" class="form inline-form">
+    <input name="topic" required placeholder="{{ _('Topic') }}" list="topics">
+    <input name="title" required placeholder="{{ _('Title') }}">
+    <input name="url" placeholder="https://… ({{ _('optional') }})">
+    <button>{{ _("Add") }}</button>
+    <datalist id="topics">
+      {% for a in course.assignments %}{% for c in a.criteria %}{% if c.topic %}<option value="{{ c.topic }}">{% endif %}{% endfor %}{% endfor %}
+    </datalist>
+  </form>
+</section>
+</div>
+
+<section class="card" id="skala">
+  <h2>{{ _("Grading scale") }}</h2>
+  <p class="small muted">{{ _("One line: minimum percent; grade. This is an example scale — adjust it to your school's rules (you can also use achievement levels, e.g. 85; Advanced).") }}</p>
+  <form method="post" action="/courses/{{ course.id }}/scale" class="form">
+    <textarea name="scale" rows="10">{{ scale_text }}</textarea>
+    <button>{{ _("Save scale") }}</button>
+  </form>
+</section>
+
+<details class="card danger-zone">
+  <summary>{{ _("Danger zone") }}</summary>
+  <form method="post" action="/courses/{{ course.id }}/delete" data-confirm="{{ _('Delete the course and ALL its data? This cannot be undone.') }}">
+    <button class="danger">{{ _("Delete course") }}</button>
+  </form>
+</details>
+{% endblock %}

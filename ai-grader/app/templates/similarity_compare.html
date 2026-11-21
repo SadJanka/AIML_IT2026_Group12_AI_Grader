@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Compare") }} — {{ assignment.title }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /
+  <a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> /
+  <a href="/assignments/{{ assignment.id }}/similarity">{{ _("Similarity check") }}</a> /</p>
+<div class="row-between">
+  <h1>{{ _("Similarity") }}: {{ percent|fmt(0) }}%</h1>
+  <div class="actions">
+    {% set here = "/assignments/" ~ assignment.id ~ "/similarity/" ~ first.id ~ "/" ~ second.id %}
+    <form method="post" action="{{ here }}">
+      <input type="hidden" name="next" value="{{ here }}">
+      {% if decision == "copying" %}
+        <span class="badge danger">{{ _("copying") }}</span>
+        <button name="decision" value="" class="secondary">{{ _("Undo decision") }}</button>
+      {% elif decision == "not_copying" %}
+        <span class="badge ok">{{ _("not copying") }}</span>
+        <button name="decision" value="" class="secondary">{{ _("Undo decision") }}</button>
+      {% else %}
+        <button name="decision" value="not_copying" class="secondary">{{ _("Not copying") }}</button>
+        <button name="decision" value="copying" class="danger">{{ _("Mark as copying") }}</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+<p class="small muted">{{ _("Highlighted: passages of at least five words that appear in both submissions. Marking as copying flags both submissions; they are then not approved automatically. Grades are not changed.") }}</p>
+
+<div class="review compare">
+  {% for sub, html in [(first, first_html), (second, second_html)] %}
+  <section class="card student-text">
+    <h2><a href="/submissions/{{ sub.id }}">{{ sub.student.label }}</a></h2>
+    {% if sub.original_filename %}<p class="small muted">{{ _("File") }}: {{ sub.original_filename }}</p>{% endif %}
+    <div class="text">{{ html }}</div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+<!doctype html>
+{% import "_icons.html" as icons %}
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ _("AI Grader") }}{% endblock %}</title>
+  <script>
+    try {
+      var t = localStorage.getItem("theme");
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block header %}
+  <header class="topbar">
+    <a class="brand" href="/">{{ _("AI Grader") }}</a>
+    <nav>
+      <details class="menu" data-menu>
+        <summary class="icon-btn" aria-label="{{ _('Settings') }}" title="{{ _('Settings') }}">{{ icons.gear() }}</summary>
+        <div class="menu-panel">
+          <div class="menu-row"><span>{{ _("Dark mode") }}</span>{% include "_theme_toggle.html" %}</div>
+          <div class="menu-row"><span>{{ _("Language") }}</span>
+            <span class="lang-switch">
+              <a href="/lang/lv?next={{ request.url.path|urlencode }}" class="{{ 'active' if lang == 'lv' }}">LV</a>
+              <a href="/lang/en?next={{ request.url.path|urlencode }}" class="{{ 'active' if lang == 'en' }}">EN</a>
+            </span></div>
+          <a class="menu-link" href="/docs">{{ _("API documentation") }}</a>
+          <p class="menu-note">{{ _("Model") }}: <code>{{ _(provider_label()) }}</code></p>
+        </div>
+      </details>
+    </nav>
+  </header>
+  {% endblock %}
+  <main class="container">
+    {% if msg %}<div class="flash">{{ msg }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block footer %}
+  <footer class="container muted small">
+    {{ _("The AI grade is a suggestion. The final decision is always made by the teacher.") }}
+  </footer>
+  {% endblock %}
+  <div id="drop-messages" hidden
+       data-reading="{{ _('Reading file…') }}"
+       data-error="{{ _('Could not read the file') }}"
+       data-uploading="{{ _('Uploading…') }}"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

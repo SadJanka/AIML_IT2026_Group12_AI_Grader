@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Accuracy") }} — {{ course.name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /</p>
+<h1>{{ _("AI grading accuracy") }}</h1>
+<p class="muted">{{ _("Compares the AI's suggested points with the known correct points (test data). The latest AI grade of each submission is used, before any teacher corrections.") }}</p>
+
+<div class="cards wide">
+  {% for t in report.tasks %}
+  <div class="card">
+    <h3>{{ t.title }}</h3>
+    {% if t.n %}
+    <table class="kv">
+      <tr><td>{{ _("Graded submissions") }}</td><td><b>{{ t.n }}</b>{% if t.pending %} <span class="muted">(+{{ t.pending }} {{ _("waiting") }})</span>{% endif %}</td></tr>
+      <tr><td>{{ _("Mean error") }}</td><td><b>{{ t.mae|fmt(2) }}</b> {{ _("p. of") }} {{ t.max_total|fmt }} <span class="muted">({{ t.mae_pct|fmt }}%)</span></td></tr>
+      <tr><td>{{ _("Total matches exactly") }}</td><td><b>{{ t.exact_pct|fmt(0) }}%</b></td></tr>
+      <tr><td>{{ _("Error at most 1 p.") }}</td><td><b>{{ t.within1_pct|fmt(0) }}%</b></td></tr>
+      <tr><td>{{ _("Criterion points match") }}</td><td><b>{{ t.criterion_exact_pct|fmt(0) }}%</b></td></tr>
+      <tr><td>{{ _("Bias") }}</td><td><b>{{ "%+.2f"|format(t.bias) if lang == "en" else ("%+.2f"|format(t.bias)).replace(".", ",") }}</b>
+        <span class="muted small">{{ _("too lenient") if t.bias > 0.25 else (_("too strict") if t.bias < -0.25 else _("balanced")) }}</span></td></tr>
+      <tr><td>{{ _("Correlation") }}</td><td><b>{{ t.correlation|fmt(2) }}</b></td></tr>
+    </table>
+    {% else %}
+    <p class="muted">{{ _("No graded submissions yet. Drop the folder into this assignment.") }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if provider_label().startswith("mock") %}
+<div class="alert warn">{{ _("Mock mode is on (keyword matching without AI). These numbers can serve as a baseline to compare a real AI model against.") }}</div>
+{% endif %}
+
+{% if report.any_graded %}
+<div class="grid2">
+  <section class="card">
+    <h2>{{ _("Manipulation attempts") }}</h2>
+    <table class="kv">
+      <tr><td>{{ _("Submissions with manipulation") }}</td><td><b>{{ report.injection_total }}</b></td></tr>
+      <tr><td>{{ _("Detected (flagged)") }}</td><td><b>{{ report.injection_flagged }}</b> / {{ report.injection_total }}</td></tr>
+      <tr><td>{{ _("AI gave in (> 1 p. too many)") }}</td><td><b class="{{ 'bad' if report.injection_inflated else 'good' }}">{{ report.injection_inflated }}</b></td></tr>
+      <tr><td>{{ _("Normal submissions flagged by mistake") }}</td><td><b>{{ report.false_flags }}</b></td></tr>
+    </table>
+    {% if report.checked_n %}
+    <h2>{{ _("Double check") }}</h2>
+    <table class="kv">
+      <tr><td>{{ _("Graded twice") }}</td><td><b>{{ report.checked_n }}</b></td></tr>
+      <tr><td>{{ _('Marked "AI unsure"') }}</td><td><b>{{ report.unsure_n }}</b></td></tr>
+      <tr><td>{{ _('Mean error of "AI unsure" submissions') }}</td><td><b>{{ report.unsure_mae_pct|fmt }}{% if report.unsure_mae_pct is not none %}%{% endif %}</b></td></tr>
+      <tr><td>{{ _("Mean error of the other submissions") }}</td><td><b>{{ report.sure_mae_pct|fmt }}{% if report.sure_mae_pct is not none %}%{% endif %}</b></td></tr>
+    </table>
+    <p class="small muted">{{ _("If the unsure submissions have a larger error, the flag sends the teacher to the right submissions.") }}</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ _("Where the AI errs most") }}</h2>
+    <table>
+      <thead><tr><th>{{ _("Category") }}</th><th>{{ _("Submissions") }}</th><th>{{ _("Mean error") }}</th><th>{{ _("Bias") }}</th></tr></thead>
+      <tbody>
+      {% for t in report.tags %}
+        <tr><td>{{ _(t.tag) }}</td><td>{{ t.n }}</td><td>{{ t.mae_pct|fmt }}%</td>
+          <td class="{{ 'bad' if t.bias_pct|abs > 15 }}">{{ "%+.0f"|format(t.bias_pct) }}%</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="small muted">{{ _("Error and bias as % of the assignment maximum. Positive bias = the AI gives more than correct.") }}</p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>{{ _("Largest differences") }}</h2>
+  <table>
+    <thead><tr><th>{{ _("Assignment") }}</th><th>{{ _("Student") }}</th><th>{{ _("Categories") }}</th>
+      <th>{{ _("Correct") }}</th><th>AI</th><th>{{ _("Difference") }}</th><th></th></tr></thead>
+    <tbody>
+    {% for r in report.worst %}
+      <tr>
+        <td class="small">{{ r.task }}</td><td>{{ r.student }}{% if r.flagged %} <span class="badge danger">{{ _("flagged") }}</span>{% endif %}</td>
+        <td class="small">{{ r.tags|join(", ") or "—" }}</td>
+        <td>{{ r.expected_total|fmt }}</td><td>{{ r.ai_total|fmt }}</td>
+        <td class="{{ 'bad' if r.diff|abs > 1 }}">{{ "%+g"|format(r.diff) }}</td>
+        <td class="right"><a href="/submissions/{{ r.submission.id }}">{{ _("Open") }} →</a></td>
+      </tr>
+      <tr class="detail"><td colspan="7" class="small muted">
+        {% for name, pts in r.expected.items() %}{{ name }}: {{ _("correct") }} {{ pts|fmt }}, AI {{ r.ai.get(name, 0)|fmt }}{% if not loop.last %} · {% endif %}{% endfor %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<details class="card">
+  <summary>{{ _("All submissions") }}</summary>
+  {% for t in report.tasks %}
+  <h3>{{ t.title }}</h3>
+  <table>
+    <thead><tr><th>{{ _("Student") }}</th><th>{{ _("Categories") }}</th><th>{{ _("Correct") }}</th><th>AI</th><th>{{ _("Difference") }}</th></tr></thead>
+    <tbody>
+    {% for r in t.rows %}
+      <tr><td>{% if r.submission %}<a href="/submissions/{{ r.submission.id }}">{{ r.student }}</a>{% else %}{{ r.student }}{% endif %}</td>
+        <td class="small">{{ r.tags|join(", ") or "—" }}</td>
+        <td>{{ r.expected_total|fmt }} / {{ r.max_total|fmt }}</td>
+        <td>{{ r.ai_total|fmt if r.graded else "–" }}</td>
+        <td>{{ "%+g"|format(r.diff) if r.graded else "–" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</details>
+{% endblock %}

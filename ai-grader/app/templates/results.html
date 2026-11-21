@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Results") }} — {{ course.name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /</p>
+<div class="row-between">
+  <h1>{{ _("Course results") }}</h1>
+  <div class="actions">
+    <a class="btn" href="/courses/{{ course.id }}/results.xlsx">{{ _("Export Excel") }}</a>
+    <a class="btn secondary" href="/courses/{{ course.id }}/results.csv">CSV</a>
+  </div>
+</div>
+<p class="small muted">{{ _("Only work approved by the teacher is counted. The final percentage is a weighted average by assignment weights; the grade follows the course grading scale.") }}
+  <a href="/courses/{{ course.id }}#skala">{{ _("Grading scale") }} →</a></p>
+
+<section class="card scroll-x">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ _("Student") }}</th>
+        {% for a in course.assignments %}<th title="{{ _('weight') }} {{ a.weight|fmt(2) }}">{{ a.title }}</th>{% endfor %}
+        <th>{{ _("Final %") }}</th><th>{{ _("Grade") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.student.label }}</td>
+        {% for cell in row.cells %}
+        <td>{% if cell.submission %}<a href="/submissions/{{ cell.submission.id }}">{{ cell.points|fmt }}/{{ cell.max_points|fmt }}</a>
+              <span class="small muted">({{ cell.percent|fmt }}%)</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+        {% endfor %}
+        <td>{{ row.final_percent|fmt }}{% if row.final_percent is not none %}%{% endif %}</td>
+        <td><b>{{ row.final_grade or "–" }}</b></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

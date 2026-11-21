@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Feedback") }} — {{ assignment.title }}{% endblock %}
+{% block header %}<header class="topbar"><span class="brand">{{ _("Feedback") }}</span>
+  <nav>{% include "_theme_toggle.html" %}</nav></header>{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+<div class="feedback">
+  <h1>{{ assignment.title }}</h1>
+  {% if sub.status != "approved" %}
+    <div class="alert warn">{{ _("Your work is still being graded. Feedback will appear once the teacher approves it.") }}</div>
+  {% else %}
+    {% include "_feedback_body.html" %}
+    <p class="small muted">{{ _("This grade was prepared by an AI assistant and reviewed and approved by the teacher.") }}</p>
+  {% endif %}
+</div>
+{% endblock %}

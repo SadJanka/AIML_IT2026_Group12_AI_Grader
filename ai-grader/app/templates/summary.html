@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Summary") }} — {{ assignment.title }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /
+  <a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> /</p>
+<div class="row-between">
+  <h1>{{ _("Summary") }}: {{ assignment.title }}</h1>
+  <div class="actions">
+    <a class="btn" href="/assignments/{{ assignment.id }}/export.xlsx">{{ _("Export Excel") }}</a>
+    <a class="btn secondary" href="/assignments/{{ assignment.id }}/print" target="_blank">{{ _("Print / PDF") }}</a>
+  </div>
+</div>
+
+{% if grading_now %}<div class="alert warn">{{ _("The AI is still grading — the summary is not complete yet.") }}
+  <a href="/assignments/{{ assignment.id }}">{{ _("See progress") }} →</a></div>{% endif %}
+
+<div class="cards five">
+  <div class="card stat"><span class="big">{{ s.n }}</span>{{ _("graded submissions") }}</div>
+  <div class="card stat"><span class="big">{{ s.mean_percent|fmt(0) }}{% if s.n %}%{% endif %}</span>{{ _("class average") }}</div>
+  <div class="card stat"><span class="big">{{ s.median_percent|fmt(0) }}{% if s.n %}%{% endif %}</span>{{ _("median") }}</div>
+  <div class="card stat"><span class="big">{{ s.counts.get("approved", 0) }}</span>{{ _("approved") }}</div>
+  <div class="card stat"><span class="big {{ 'warn-text' if s.to_review }}">{{ s.to_review }}</span>{{ _("waiting for your review") }}</div>
+</div>
+
+{% if s.to_review %}
+<section class="card next-step">
+  <div class="row-between">
+    <div>
+      <h2>{{ _("Next step: review and approve") }}</h2>
+      <p class="small muted">{{ _("Students see feedback only after approval. Flagged submissions (possible manipulation, AI unsure, copying) are never approved automatically.") }}</p>
+    </div>
+    <div class="actions">
+      {% set first = (assignment.submissions|selectattr("status", "equalto", "ai_graded")|first) %}
+      {% if first %}<a class="btn secondary" href="/submissions/{{ first.id }}">{{ _("Review one by one") }} →</a>{% endif %}
+      {% if s.approvable %}
+      <form method="post" action="/assignments/{{ assignment.id }}/approve-all"
+            data-confirm="{{ _('Approve {n} submissions with the AI-suggested points without opening them? Flagged submissions will not be approved.', n=s.approvable|length) }}">
+        <button>{{ _("Approve all ({n}) except flagged", n=s.approvable|length) }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if s.n %}
+<div class="grid2">
+  <section class="card">
+    <h2>{{ _("Score distribution") }}</h2>
+    {% set peak = s.histogram|map(attribute=1)|max %}
+    <div class="histogram">
+      {% for label, count in s.histogram %}
+      <div class="hbar" title="{{ label }}: {{ count }}">
+        <span class="hcount">{{ count if count }}</span>
+        <span class="hfill {{ 'low' if loop.index0 < 5 }}" style="height: {{ (100 * count / peak) if peak else 0 }}%"></span>
+        <span class="hlabel">{{ label.split('–')[0] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <h3>{{ _("Grades") }}</h3>
+    <table class="kv">
+      {% for grade, count in s.grades if count %}
+      <tr><td>{{ grade }}</td><td><b>{{ count }}</b></td></tr>
+      {% endfor %}
+    </table>
+    <p class="small muted">{{ _("Lowest") }}: {{ s.min_row.submission.student.label }} ({{ s.min_row.percent|fmt(0) }}%) ·
+      {{ _("highest") }}: {{ s.max_row.submission.student.label }} ({{ s.max_row.percent|fmt(0) }}%)</p>
+  </section>
+
+  <section class="card">
+    <h2>{{ _("What the class should revise") }}</h2>
+    {% if s.weakest %}
+      {% for c in s.weakest %}
+      <div class="weak-item">
+        <div class="row-between"><b>{{ c.criterion.name }}</b><span class="badge {{ 'danger' if c.mean_percent < 50 else 'warn' }}">{{ c.mean_percent|fmt(0) }}%</span></div>
+        {% if c.common_mistakes %}<ul class="small mistakes">{% for m in c.common_mistakes %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+        {% if c.materials %}<p class="small">{{ _("Materials") }}: {% for m in c.materials %}{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{{ m.title }}</a>{% else %}{{ m.title }}{% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">{{ _("The class average is at least 70% on every criterion — great!") }}</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <h2>{{ _("By criterion") }}</h2>
+  <table>
+    <thead><tr><th>{{ _("Criterion") }}</th><th>{{ _("Average") }}</th><th style="width:40%"></th></tr></thead>
+    <tbody>
+    {% for c in s.criteria %}
+      <tr><td>{{ c.criterion.name }}</td><td>{{ c.mean_points|fmt(2) }} / {{ c.criterion.max_points|fmt }}</td>
+        <td><div class="mini-bar"><div class="mini-fill {{ 'low' if c.mean_percent < 50 }}" style="width: {{ c.mean_percent }}%"></div></div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <h2>{{ _("Students who need attention") }} <span class="muted small">(&lt; 50%)</span></h2>
+    {% if s.attention %}
+    <table>
+      {% for r in s.attention %}
+      <tr><td><a href="/submissions/{{ r.submission.id }}">{{ r.submission.student.label }}</a></td>
+        <td>{{ r.points|fmt }} / {{ r.max_points|fmt }}</td><td class="bad">{{ r.percent|fmt(0) }}%</td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">{{ _("None — everyone scored at least 50%.") }}</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ _("Flagged submissions") }}</h2>
+    {% if s.flagged %}
+    <ul>{% for sub in s.flagged %}<li><a href="/submissions/{{ sub.id }}">{{ sub.student.label }}</a>
+      {% for f in sub.flags %}<span class="badge {{ 'warn' if f == 'AI unsure' else 'danger' }}">{{ _(f) }}</span> {% endfor %}
+      <span class="small muted">{{ _(sub.status_label) }}</span></li>{% endfor %}</ul>
+    {% else %}<p class="muted">{{ _("No flagged submissions.") }}</p>{% endif %}
+  </section>
+</div>
+
+<details class="card">
+  <summary>{{ _("Links for students ({n})", n=links|length) }}</summary>
+  {% if links %}
+  <p class="small muted">{{ _("Each student has their own feedback link (approved submissions only). Copy and send them, e.g. by e-mail or in the school system.") }}</p>
+  <textarea rows="8" readonly id="links-text">{% for sub, url in links %}{{ sub.student.display_name or sub.student.code }}	{{ url }}
+{% endfor %}</textarea>
+  <button type="button" class="secondary" data-copy="#links-text" data-copied="{{ _('Copied!') }}">{{ _("Copy all links") }}</button>
+  {% else %}<p class="muted">{{ _("Links appear after submissions are approved.") }}</p>{% endif %}
+</details>
+{% else %}
+<p class="muted">{{ _("No graded submissions yet.") }}</p>
+{% endif %}
+{% endblock %}

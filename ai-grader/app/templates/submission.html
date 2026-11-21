@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ sub.student.code }} — {{ assignment.title }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /
+  <a href="/assignments/{{ assignment.id }}">{{ assignment.title }}</a> /</p>
+<div class="row-between">
+  <h1>{{ sub.student.label }} <span class="badge {{ sub.status }}">{{ _(sub.status_label) }}</span></h1>
+  <div class="actions">
+    {% if prev_id %}<a class="btn secondary" href="/submissions/{{ prev_id }}">← {{ _("Previous") }}</a>{% endif %}
+    {% if next_id %}<a class="btn secondary" href="/submissions/{{ next_id }}">{{ _("Next") }} →</a>{% endif %}
+  </div>
+</div>
+
+{% if sub.injection_flag %}
+<div class="alert danger">
+  <b>{{ _("Possible manipulation attempt (prompt injection).") }}</b>
+  {{ _("The work contains text that seems to try to influence the AI grader. The AI does not follow these instructions, but review this work especially carefully.") }}
+  <ul class="small">{% for line in sub.injection_details.splitlines() %}<li>{{ line }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if sub.copying_flag %}
+<div class="alert danger"><b>{{ _("Marked as copying.") }}</b>
+  {{ _("You marked this submission as copied or shared with another student.") }}
+  <a href="/assignments/{{ assignment.id }}/similarity">{{ _("Similarity check") }} →</a></div>
+{% endif %}
+{% if sub.uncertain %}
+<div class="alert warn"><b>{{ _("AI unsure.") }}</b>
+  {{ _("The two AI runs gave different points. The criteria where they differ show the second result.") }}</div>
+{% endif %}
+{% if sub.status == "error" %}
+<div class="alert danger"><b>{{ _("AI grading failed:") }}</b> {{ sub.error }}
+  <br><span class="small">{{ _("You can try again or grade manually below.") }}</span></div>
+{% elif sub.error %}
+<div class="alert warn"><b>{{ _("Warnings:") }}</b><ul class="small">{% for line in sub.error.splitlines() %}<li>{{ line }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<div class="review">
+  <section class="card student-text">
+    <h2>{{ _("Student's work") }}</h2>
+    {% if sub.original_filename %}<p class="small muted">{{ _("File") }}: {{ sub.original_filename }}</p>{% endif %}
+    <div class="text">{{ sub.text }}</div>
+    <p class="small muted">{{ _("{n} words", n=sub.text.split()|length) }} · {{ _("submitted") }} {{ sub.submitted_at.strftime("%d.%m.%Y %H:%M") }}</p>
+  </section>
+
+  <section class="card">
+    <div class="row-between">
+      <h2>{{ _("Assessment") }}</h2>
+      {% if sub.status != "approved" %}
+      <form method="post" action="/submissions/{{ sub.id }}/grade"
+            {% if sub.scores %}data-confirm="{{ _('Grade again? Your changes will be replaced with the new AI suggestion.') }}"{% endif %}>
+        <button class="secondary">{{ _("Grade with AI again") if sub.scores else _("Grade with AI") }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if sub.ai_model %}<p class="small muted">AI: {{ _(sub.ai_model) }} · {{ _("prompt version") }} {{ sub.ai_prompt_version }}
+      · {{ sub.ai_graded_at.strftime("%d.%m.%Y %H:%M") if sub.ai_graded_at }}</p>{% endif %}
+
+    {% set locked = sub.status == "approved" %}
+    <form method="post" action="/submissions/{{ sub.id }}/review" class="form">
+      {% for c in assignment.criteria %}
+      {% set sc = sub.score_for(c.id) %}
+      <div class="crit {% if sc and sc.changed_by_teacher %}changed{% endif %}">
+        <div class="row-between">
+          <h3>{{ c.name }}</h3>
+          <div class="points">
+            {% if sc and sc.ai_points is not none %}<span class="muted small">AI: {{ sc.ai_points|fmt }}</span>{% endif %}
+            {% if sc and sc.check_points is not none and sc.check_points != sc.ai_points %}<span class="badge warn small">{{ _("2nd run: {p}", p=sc.check_points|fmt) }}</span>{% endif %}
+            <input type="number" name="points_{{ c.id }}" min="0" max="{{ c.max_points }}" step="0.5"
+                   value="{{ '%g'|format(sc.final_points) if sc and sc.final_points is not none else '' }}" {% if locked %}disabled{% endif %}>
+            <span>/ {{ c.max_points|fmt }}</span>
+          </div>
+        </div>
+        {% if c.expected_answer %}<p class="small expected-answer">{{ _("Correct answer") }}: {{ c.expected_answer }}</p>{% endif %}
+        {% if sc and sc.ai_justification %}<p class="small">{{ sc.ai_justification }}</p>{% endif %}
+        {% if sc and sc.ai_mistakes %}<ul class="small mistakes">{% for m in sc.ai_mistakes %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+        {% if sc and sc.ai_improvement %}<p class="small tip"><b>{{ _("How to improve") }}:</b> {{ sc.ai_improvement }}</p>{% endif %}
+        <textarea name="comment_{{ c.id }}" rows="1" placeholder="{{ _("Teacher's comment to the student (optional)") }}"
+                  {% if locked %}disabled{% endif %}>{{ sc.teacher_comment if sc else '' }}</textarea>
+      </div>
+      {% endfor %}
+
+      <label>{{ _("Summary for the student") }}
+        <textarea name="summary" rows="3" {% if locked %}disabled{% endif %}>{{ sub.final_summary }}</textarea>
+      </label>
+
+      <p class="total">{{ _("Total") }}: <b>{{ sub.final_total|fmt }}</b> / {{ assignment.max_points|fmt }}
+        {% if sub.ai_total is not none and sub.ai_total != sub.final_total %}<span class="muted small">({{ _("AI suggested") }} {{ sub.ai_total|fmt }})</span>{% endif %}</p>
+
+      {% if not locked %}
+      <div class="actions">
+        <button name="action" value="approve">{{ _("Approve") }}</button>
+        <button name="action" value="save" class="secondary">{{ _("Save draft") }}</button>
+      </div>
+      {% endif %}
+    </form>
+
+    {% if locked %}
+    <div class="alert ok">
+      {{ _("Approved") }} {{ sub.approved_at.strftime("%d.%m.%Y %H:%M") if sub.approved_at }}.
+      {{ _("Link for the student") }}: <a href="/feedback/{{ sub.feedback_token }}" target="_blank">/feedback/{{ sub.feedback_token }}</a>
+    </div>
+    <form method="post" action="/submissions/{{ sub.id }}/reopen"><button class="secondary">{{ _("Cancel approval and edit") }}</button></form>
+    {% endif %}
+
+    {% if weak %}
+    <h3>{{ _("Recommended materials for the student") }}</h3>
+    <ul class="small">
+      {% for w in weak %}<li><b>{{ w.topic }}</b> ({{ w.criteria|join(", ") }}):
+        {% if w.materials %}{% for m in w.materials %}{{ m.title }}{% if not loop.last %}; {% endif %}{% endfor %}
+        {% else %}<span class="muted">{{ _("no materials added") }} — <a href="/courses/{{ course.id }}#materiali">{{ _("add") }}</a></span>{% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+</div>
+
+<details class="card">
+  <summary>{{ _("Audit: raw AI response") }}</summary>
+  <pre class="raw">{{ sub.ai_raw or "—" }}</pre>
+</details>
+<form method="post" action="/submissions/{{ sub.id }}/delete" data-confirm="{{ _('Delete this submission and its grade?') }}">
+  <button class="link danger small">{{ _("Delete submission") }}</button>
+</form>
+{% endblock %}

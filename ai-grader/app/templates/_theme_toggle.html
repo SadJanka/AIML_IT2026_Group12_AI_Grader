@@ -1,0 +1,6 @@
+{% set sun %}<svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>{% endset %}
+{% set moon %}<svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z"/></svg>{% endset %}
+<button type="button" class="theme-toggle" role="switch" aria-checked="false"
+        aria-label="{{ _('Dark mode') }}" title="{{ _('Dark mode') }}" data-theme-toggle>
+  <span class="track">{{ sun }}{{ moon }}<span class="knob">{{ sun }}{{ moon }}</span></span>
+</button>

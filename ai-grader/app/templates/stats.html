@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ _("AI vs teacher") }} — {{ course.name }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /</p>
+<h1>{{ _("Agreement between AI and teacher grades") }}</h1>
+<p class="muted">{{ _("How often and by how much the teacher corrects the AI suggestion. These numbers show how reliable the AI grading is in this course and are useful for project analysis. Only approved work is counted.") }}</p>
+
+{% if stats.scores %}
+<div class="cards">
+  <div class="card stat"><span class="big">{{ stats.submissions }}</span>{{ _("approved submissions") }}</div>
+  <div class="card stat"><span class="big">{{ stats.changed_share|fmt }}%</span>{{ _("of criterion scores changed by the teacher") }}</div>
+  <div class="card stat"><span class="big">{{ stats.mae_points|fmt(2) }}</span>{{ _("mean absolute difference (points)") }}</div>
+  <div class="card stat"><span class="big">{{ stats.mae_percent|fmt }}%</span>{{ _("mean difference as % of criterion max") }}</div>
+  <div class="card stat"><span class="big">{{ stats.flagged }}</span>{{ _("submissions with signs of manipulation") }}</div>
+</div>
+
+<section class="card">
+  <h2>{{ _("By criterion") }}</h2>
+  <table>
+    <thead><tr><th>{{ _("Assignment") }}</th><th>{{ _("Criterion") }}</th><th>{{ _("Scores") }}</th><th>{{ _("AI mean") }}</th>
+      <th>{{ _("Teacher mean") }}</th><th>{{ _("Mean diff.") }}</th><th>{{ _("Changed") }}</th></tr></thead>
+    <tbody>
+    {% for cs in stats.criteria %}
+      <tr>
+        <td>{{ cs.criterion.assignment.title }}</td>
+        <td>{{ cs.criterion.name }} <span class="muted small">({{ _("max") }} {{ cs.criterion.max_points|fmt }})</span></td>
+        <td>{{ cs.n }}</td>
+        <td>{{ cs.mean_ai|fmt(2) }}</td>
+        <td>{{ cs.mean_final|fmt(2) }}</td>
+        <td>{{ cs.mae|fmt(2) }}</td>
+        <td>{{ cs.changed }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="small muted">{{ _("If the AI gives more points than the teacher on average, it is too lenient on this criterion; if fewer, too strict. In that case make the criterion description or correct answer more specific.") }}</p>
+</section>
+{% if provider == "mock" %}<div class="alert warn">{{ _("Mock mode is on — it is not a real AI, so these statistics are not meaningful.") }}</div>{% endif %}
+{% else %}
+<p class="muted">{{ _("No approved submissions with an AI grade yet.") }}</p>
+{% endif %}
+{% endblock %}

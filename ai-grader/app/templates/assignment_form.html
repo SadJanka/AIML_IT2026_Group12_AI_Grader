@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Edit assignment") if assignment else _("New assignment") }} — {{ _("AI Grader") }}{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/">{{ _("Courses") }}</a> / <a href="/courses/{{ course.id }}">{{ course.name }}</a> /</p>
+<h1>{{ _("Edit assignment") if assignment else _("New assignment") }}</h1>
+
+<form method="post" class="form card"
+      action="{% if assignment %}/assignments/{{ assignment.id }}/edit{% else %}/courses/{{ course.id }}/assignments{% endif %}">
+  <label>{{ _("Title") }} <input name="title" required value="{{ assignment.title if assignment else '' }}"></label>
+  <label>{{ _("Task for the student (the AI sees it when grading)") }}
+    <textarea name="instructions" rows="3" data-drop placeholder="{{ _('What did the student have to do?') }}">{{ assignment.instructions if assignment else '' }}</textarea>
+    <span class="drop-hint">{{ _("you can drop a .docx, .pdf or .txt file here") }}</span>
+  </label>
+  <label>{{ _("Model answer / answer key for the whole work (optional)") }}
+    <span class="small muted">{{ _("The AI uses it as a reference. The student's answer does not have to match word for word — meaning matters.") }}</span>
+    <textarea name="model_answer" rows="4" data-drop placeholder="{{ _("e.g. an answer sheet or the teacher's model answer") }}">{{ assignment.model_answer if assignment else '' }}</textarea>
+    <span class="drop-hint">{{ _("you can drop a .docx, .pdf or .txt file here") }}</span>
+  </label>
+  <div class="grid2 narrow-grid">
+    <label>{{ _("Feedback language") }}
+      <select name="language">
+        {% set current = assignment.language if assignment else lang %}
+        {% for code, name in LANGUAGE_NAMES.items() %}
+        <option value="{{ code }}" {{ 'selected' if code == current }}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ _("Weight in the final course grade") }}
+      <input name="weight" value="{{ (assignment.weight if assignment else 1)|fmt(2) }}">
+    </label>
+  </div>
+
+  <h2>{{ _("Grading criteria") }}</h2>
+  <p class="small muted">{{ _("The more specific the description and the correct answer, the more accurately the AI grades. The topic links the criterion to learning materials.") }}<br>
+    <b>{{ _("For a test:") }}</b> {{ _("each question = one criterion (question, points, correct answer).") }}</p>
+
+  <div id="criteria">
+    {% set crit_list = assignment.criteria if assignment else [None] %}
+    {% for c in crit_list %}
+    <div class="criterion-row">
+      <input type="hidden" name="crit_id" value="{{ c.id if c else '' }}">
+      <input name="crit_name" placeholder="{{ _('Criterion or question') }}" value="{{ c.name if c else '' }}" required>
+      <input name="crit_max" class="num" placeholder="{{ _('Max p.') }}" value="{{ c.max_points|fmt if c else '' }}" required>
+      <input name="crit_topic" placeholder="{{ _('Topic') }}" value="{{ c.topic if c else '' }}">
+      <button type="button" class="link danger small" data-remove-row>{{ _("remove") }}</button>
+      <label class="mini span">{{ _("Description") }}
+        <textarea name="crit_desc" rows="2" data-drop placeholder="{{ _('Description: what must be shown to earn the points') }}">{{ c.description if c else '' }}</textarea></label>
+      <label class="mini span ok-label">{{ _("Correct answer") }}
+        <textarea name="crit_expected" rows="2" data-drop class="expected" placeholder="{{ _('Correct answer (optional)') }}">{{ c.expected_answer if c else '' }}</textarea></label>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="secondary" id="add-criterion">+ {{ _("Add criterion") }}</button>
+
+  <div class="actions">
+    <button>{{ _("Save") }}</button>
+    <a class="btn secondary" href="{% if assignment %}/assignments/{{ assignment.id }}{% else %}/courses/{{ course.id }}{% endif %}">{{ _("Cancel") }}</a>
+  </div>
+</form>
+
+<template id="criterion-template">
+  <div class="criterion-row">
+    <input type="hidden" name="crit_id" value="">
+    <input name="crit_name" placeholder="{{ _('Criterion or question') }}" required>
+    <input name="crit_max" class="num" placeholder="{{ _('Max p.') }}" required>
+    <input name="crit_topic" placeholder="{{ _('Topic') }}">
+    <button type="button" class="link danger small" data-remove-row>{{ _("remove") }}</button>
+    <label class="mini span">{{ _("Description") }}
+      <textarea name="crit_desc" rows="2" data-drop placeholder="{{ _('Description: what must be shown to earn the points') }}"></textarea></label>
+    <label class="mini span ok-label">{{ _("Correct answer") }}
+      <textarea name="crit_expected" rows="2" data-drop class="expected" placeholder="{{ _('Correct answer (optional)') }}"></textarea></label>
+  </div>
+</template>
+{% endblock %}
